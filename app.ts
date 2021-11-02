@@ -1,11 +1,29 @@
 import { Application, Context, Router } from "https://deno.land/x/oak/mod.ts";
-import jsonfeed from "https://esm.sh/jsonfeed-to-rss"
+import * as dejs from "https://deno.land/x/dejs@0.10.2/mod.ts";
 
 const routes = JSON.parse(await Deno.readTextFile("./routes.json"));
 
 async function parse2XML(ctx: Context<Record<string, any>>, next: () => Promise<unknown> ) {
+  ctx.state.data = {}
   await next();
-  ctx.response.body = jsonfeed(ctx.response.body);
+  const routeTtl = 0
+  const keys = ['lastBuildDate', 'updated', 'ttl', 'atomlink', 'itunes_author', 'item', 'link', 'description', 'title', 'language', 'image', 'itunes_category'].reduce((prev, next) => {
+    prev[next] = undefined
+    return prev
+  }, {} as any)
+  
+  const data = {
+    ...keys,
+    lastBuildDate: new Date().toUTCString(),
+    updated: new Date().toISOString(),
+    ttl: routeTtl,
+    atomlink: ctx.request.url,   
+    ...ctx.state.data
+  }
+
+  console.log(data);
+  
+  ctx.response.body = await dejs.renderFileToString(`${Deno.cwd()}\\views\\rss.ejs`, data);
   ctx.response.headers.set("Content-Type", "application/xml");
 }
 
